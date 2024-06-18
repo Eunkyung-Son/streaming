@@ -1,5 +1,6 @@
 import type { MetaFunction } from "@remix-run/node";
-
+import pkg from "react-dom/server";
+const { renderToReadableStream } = pkg;
 export const meta: MetaFunction = () => {
   return [
     { title: "New Remix App" },
@@ -7,42 +8,51 @@ export const meta: MetaFunction = () => {
   ];
 };
 
-export default function Index() {
+function App() {
   return (
-    <div className="font-sans p-4">
-      <h1 className="text-3xl">Welcome to Remix</h1>
-      <ul className="list-disc mt-4 pl-6 space-y-2">
-        <li>
-          <a
-            className="text-blue-700 underline visited:text-purple-900"
-            target="_blank"
-            href="https://remix.run/start/quickstart"
-            rel="noreferrer"
-          >
-            5m Quick Start
-          </a>
-        </li>
-        <li>
-          <a
-            className="text-blue-700 underline visited:text-purple-900"
-            target="_blank"
-            href="https://remix.run/start/tutorial"
-            rel="noreferrer"
-          >
-            30m Tutorial
-          </a>
-        </li>
-        <li>
-          <a
-            className="text-blue-700 underline visited:text-purple-900"
-            target="_blank"
-            href="https://remix.run/docs"
-            rel="noreferrer"
-          >
-            Remix Docs
-          </a>
-        </li>
-      </ul>
-    </div>
+    <html>
+      <head>
+        <meta charSet="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>My app</title>
+      </head>
+      <body>
+        {Array.from({ length: 100 }).map((_, i) => (
+          <div key={i}>{i}</div>
+        ))}
+      </body>
+    </html>
   );
+}
+
+export default function Index() {
+  const decoder = new TextDecoder();
+
+  async function readStream(stream: ReadableStream<Uint8Array>): Promise<void> {
+    const reader = stream.getReader();
+
+    async function processChunk(
+      result: ReadableStreamReadResult<Uint8Array>
+    ): Promise<void> {
+      if (result.done) return;
+
+      if (result.value) {
+        const decodedValue = decoder.decode(result.value);
+        console.log(decodedValue);
+      }
+
+      return reader.read().then(processChunk);
+    }
+
+    return reader.read().then(processChunk);
+  }
+
+  async function fetchAndProcessStream(): Promise<void> {
+    const stream = await renderToReadableStream(<App />);
+    await readStream(stream);
+  }
+
+  fetchAndProcessStream().catch(console.error);
+
+  return <div>Index Component</div>;
 }
